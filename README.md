@@ -4,73 +4,103 @@
 
 # haraka-plugin-uribl
 
-Clone me, to create a new Haraka plugin!
+This plugin extracts URIs and feeds them to RHS based blacklists such as [DBL][1] and [SEM-FRESH][2] and body URI based DNS blacklists such as [SURBL][3] and [URIBL][4].
 
-# Template Instructions
+This plugin will discard any domain name that does not have a valid TLD or any IP address within RFC1918, 127/8 or 169.254/16 (APIPA) and will convert any URI ending in in-addr.arpa into an IP address lookup.
 
-These instructions will not self-destruct after use. Use and destroy.
+Configuration
+-------------
 
-See also, [How to Write a Plugin](https://github.com/haraka/Haraka/wiki/Write-a-Plugin) and [Plugins.md](https://github.com/haraka/Haraka/blob/master/docs/Plugins.md) for additional plugin writing information.
+This plugin reads configuration from data.uribl.ini.
 
-## Create a new repo for your plugin
+The main section defines global settings for all lists and the blacklists zones are specified as INI section headings with the configuration for each zone within that section.
 
-Haraka plugins are named like `haraka-plugin-something`. All the namespace after `haraka-plugin-` is yours for the taking. Please check the [Plugins](https://github.com/haraka/Haraka/blob/master/Plugins.md) page and a Google search to see what plugins already exist.
+The main section can contain the following options:
 
-Once you've settled on a name, create the GitHub repo. On the repo's main page, click the _Clone or download_ button and copy the URL. Then paste that URL into a local ENV variable with a command like this:
+* timeout
 
-```sh
-export MY_GITHUB_ORG=haraka
-export MY_PLUGIN_NAME=haraka-plugin-SOMETHING
-```
+  Default: 30
 
-Clone and rename the uribl repo:
+  The total timeout in seconds for each group of lookups.  Any group of
+  lookups that takes longer than this will be aborted and the session
+  will continue.
 
-```sh
-git clone git@github.com:haraka/haraka-plugin-uribl.git
-mv haraka-plugin-uribl $MY_PLUGIN_NAME
-cd $MY_PLUGIN_NAME
-git remote rm origin
-git remote add origin "git@github.com:$MY_GITHUB_ORG/$MY_PLUGIN_NAME.git"
-```
+* max\_uris\_per\_list
 
-Now you'll have a local git repo to begin authoring your plugin
+  Default: 20
 
-## rename boilerplate
+  This option limits the maximum number of unique lookups that will be submitted for each list after the input has been normalized into the query format required for the list. Any lookups greater than the limit will be discarded.
 
-Replaces all uses of the word `uribl` with your plugin's name.
+List sections should be named as the zone of the blacklist and can contain the following options:
 
-./redress.sh [something]
+At least one of the following must be set for any queries to be run for the blacklist.
 
-You'll then be prompted to update package.json and then force push this repo onto the GitHub repo you've created earlier.
+* rdns = 1 | true | yes | on | enabled
 
+  Check any rDNS names against the list.
 
-# Add your content here
+* helo = 1 | true | yes | on | enabled
 
-## INSTALL
+  Check the EHLO/HELO argument against the list.
 
-```sh
-cd /path/to/local/haraka
-npm install haraka-plugin-uribl
-echo "uribl" >> config/plugins
-service haraka restart
-```
+* envfrom = 1 | true | yes | on | enabled
 
-### Configuration
+  Check the MAIL FROM domain against the list.
 
-If the default configuration is not sufficient, copy the config file from the distribution into your haraka config dir and then modify it:
+* from = 1 | true | yes | on | enabled
 
-```sh
-cp node_modules/haraka-plugin-uribl/config/uribl.ini config/uribl.ini
-$EDITOR config/uribl.ini
-```
+  Check the domain portion of the From: header against the list.
 
-## USAGE
+* replyto = 1 | true | yes | on | enabled
 
+  Check the domain portion of the Reply-To: header against the list.
 
-<!-- leave these buried at the bottom of the document -->
+* msgid = 1 | true | yes | on | enabled
+
+  Check the RHS of the Message-Id: header against the list.
+
+* body = 1 | true | yes | on | enabled
+
+  Check any URIs found within the body of the message against the list.
+
+The following are optional for each list:
+
+* custom\_msg
+
+  A custom rejection message that will be returned to the SMTP client if the list returns a positive result. If found within the string {uri} will be replaced by the URI value looked up and {zone} will be replaced by the blacklist zone name.
+
+* validate
+
+  A regular expression that will be tested against the first A record returned by the list.  If it does not evaluate to true then the positive result will be discarded.  Example: ^(?!127\.0\.1\.255)127\. would check that the IP address returned start with 127. and is not 127.0.1.255
+
+* bitmask
+
+  This is optionally used for lists such as [SURBL][3] and [URIBL][4] that return bitmask values in the last octet of the returned IP address to combine multiple lists into a single zone.  Using this you may specify which lists within the zone you want use.
+
+* no\_ip\_lookups = 1 | true | yes | on | enabled
+
+  Specifies that no IP addresses should ever be check against this list. This is required for dbl.spamhaus.org.
+
+* strip\_to\_domain= 1 | true | yes | on | enabled
+
+  Specifies that the list requires hostnames be stripped down to the domain boundaries prior to querying the list.  This is required for the [SURBL][3] and [URIBL][4] lists.
+
+Other files
+-----------
+
+* data.uribl.excludes
+
+  This contains a list of domains that should never be looked up in any blacklist as they are known good and will never be listed. This helps to keep useless queries to a minimum.
+
+[1]: http://www.spamhaus.org/dbl
+[2]: http://spameatingmonkey.com/lists.html#SEM-FRESH
+[3]: http://www.surbl.org/
+[4]: http://www.uribl.com/
+
 [ci-img]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml/badge.svg
 [ci-url]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml
 [clim-img]: https://codeclimate.com/github/haraka/haraka-plugin-uribl/badges/gpa.svg
 [clim-url]: https://codeclimate.com/github/haraka/haraka-plugin-uribl
 [npm-img]: https://nodei.co/npm/haraka-plugin-uribl.png
 [npm-url]: https://www.npmjs.com/package/haraka-plugin-uribl
+data.uribl
