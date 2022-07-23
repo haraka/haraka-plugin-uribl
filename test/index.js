@@ -16,9 +16,6 @@ beforeEach(function () {
   this.plugin.config.root_path = path.resolve(__dirname, '../../config');
 
   this.plugin.register();
-
-  this.connection = fixtures.connection.createConnection();
-  this.connection.transaction = fixtures.transaction.createTransaction()
 })
 
 describe('uribl', function () {
@@ -30,29 +27,19 @@ describe('uribl', function () {
 describe('load_uribl_ini', function () {
   it('loads uribl.ini from config/uribl.ini', function (done) {
     this.plugin.load_uribl_ini()
-    assert.ok(this.plugin.cfg)
-    done()
-  })
-})
-
-describe('uses text fixtures', function () {
-  it('sets up a connection', function (done) {
-    this.connection = fixtures.connection.createConnection({})
-    assert.ok(this.connection.server)
-    done()
-  })
-
-  it('sets up a transaction', function (done) {
-    this.connection = fixtures.connection.createConnection({})
-    this.connection.transaction = fixtures.transaction.createTransaction({})
-    // console.log(this.connection.transaction)
-    assert.ok(this.connection.transaction.header)
+    assert.equal(this.plugin.cfg.main.max_uris_per_list, 20)
     done()
   })
 })
 
 describe('do_lookups', function () {
+
+  beforeEach(function () {
+    this.connection = fixtures.connection.createConnection();
+  })
+
   it('lookup_test_ip: 127.0.0.2', function (done) {
+    // this.connection.transaction = fixtures.transaction.createTransaction()
     this.plugin.do_lookups(this.connection, (code, msg) => {
       // no result b/c private IP
       assert.equal(code, undefined)
@@ -71,6 +58,10 @@ describe('do_lookups', function () {
 })
 
 describe('lookup_remote_ip', function () {
+  beforeEach(function () {
+    this.connection = fixtures.connection.createConnection();
+  })
+
   it('lookup_remote_ip: 66.128.51.165', function (done) {
     this.connection.remote.ip = '66.128.51.165'
     this.plugin.lookup_remote_ip((code, msg) => {
