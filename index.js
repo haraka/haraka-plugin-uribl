@@ -1,13 +1,13 @@
 'use strict'
 
 exports.register = function () {
-  this.load_template_ini()
+  this.load_uribl_ini()
 }
 
-exports.load_template_ini = function () {
+exports.load_uribl_ini = function () {
   const plugin = this
 
-  plugin.cfg = plugin.config.get('template.ini', {
+  plugin.cfg = plugin.config.get('uribl.ini', {
     booleans: [
       '+enabled',               // plugin.cfg.main.enabled=true
       '-disabled',              // plugin.cfg.main.disabled=false

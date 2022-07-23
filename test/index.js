@@ -10,26 +10,26 @@ const fixtures = require('haraka-test-fixtures')
 //    mocha: http://mochajs.org
 
 beforeEach(function (done) {
-  this.plugin = new fixtures.plugin('template')
+  this.plugin = new fixtures.plugin('uribl')
   done()  // if a test hangs, assure you called done()
 })
 
-describe('template', function () {
+describe('uribl', function () {
   it('loads', function (done) {
     assert.ok(this.plugin)
     done()
   })
 })
 
-describe('load_template_ini', function () {
-  it('loads template.ini from config/template.ini', function (done) {
-    this.plugin.load_template_ini()
+describe('load_uribl_ini', function () {
+  it('loads uribl.ini from config/uribl.ini', function (done) {
+    this.plugin.load_uribl_ini()
     assert.ok(this.plugin.cfg)
     done()
   })
 
   it('initializes enabled boolean', function (done) {
-    this.plugin.load_template_ini()
+    this.plugin.load_uribl_ini()
     assert.equal(this.plugin.cfg.main.enabled, true, this.plugin.cfg)
     done()
   })
