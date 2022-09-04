@@ -247,7 +247,7 @@ exports.do_lookups = function (connection, next, hosts, type) {
       if (plugin.cfg[query[1]] && plugin.cfg[query[1]].validate) {
         const re = new RegExp(plugin.cfg[query[1]].validate);
         if (!re.test(addrs[0])) {
-          connection.logdebug(plugin, `ignoring result (${addrs[0]}) for: ${lookup} as it did not match validation rule`);
+          connection.logwarn(plugin, `ignoring result (${addrs[0]}) for: ${lookup} as it did not match validation rule`);
           skip = true;
         }
       }
