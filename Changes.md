@@ -1,6 +1,10 @@
 
 ### Unreleased
 
+### 1.0.6 - 2022-11-28
+
+- test: increase timeout for DNSBL test
+
 
 ### 1.0.5 - 2022-08-29
 
