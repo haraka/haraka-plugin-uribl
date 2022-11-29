@@ -25,10 +25,9 @@ describe('uribl', function () {
 })
 
 describe('load_uribl_ini', function () {
-  it('loads uribl.ini from config/uribl.ini', function (done) {
+  it('loads uribl.ini from config/uribl.ini', function () {
     this.plugin.load_uribl_ini()
     assert.equal(this.plugin.cfg.main.max_uris_per_list, 20)
-    done()
   })
 })
 
@@ -49,7 +48,9 @@ describe('do_lookups', function () {
   })
 
   it('lookup_test_ip: test.uribl.com', function (done) {
+    this.timeout(4000)
     this.plugin.do_lookups(this.connection, (code, msg) => {
+      if (code) console.log(`code: ${code}, ${msg}`)
       assert.equal(code, undefined)
       assert.equal(msg, undefined)
       done()
