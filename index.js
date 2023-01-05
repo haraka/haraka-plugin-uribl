@@ -98,8 +98,8 @@ exports.do_lookups = function (connection, next, hosts, type) {
 
   let j;
   const queries = {};
-  for (const hostElement of hosts) {
-    let host = hostElement.toLowerCase();
+  for (let host of hosts) {
+    host = host.toLowerCase();
     connection.logdebug(plugin, `(${type}) checking: ${host}`);
     // Make sure we have a valid TLD
     if (!net.isIPv4(host) && !net.isIPv6(host) && !tlds.top_level_tlds[(host.split('.').reverse())[0]]) {
