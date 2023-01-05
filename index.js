@@ -15,21 +15,6 @@ let schemed    = /(\w{3,16}:\/+(?:\S+@)?([a-zA-Z0-9][a-zA-Z0-9\-.]+\.(?:aero|arp
 
 const excludes = {};
 
-function check_excludes_list (host) {
-  host = host.toLowerCase().split('.').reverse();
-  for (let i=0; i < host.length; i++) {
-    let check;
-    if (i === 0) {
-      check = host[i];
-    }
-    else {
-      check = [ host[i], check ].join('.');
-    }
-    if (excludes[check]) return true;
-  }
-  return false;
-}
-
 exports.register = function () {
 
   // Override regexps if top_level_tlds file is present
@@ -77,7 +62,22 @@ exports.load_uribl_exludes = function () {
   });
 }
 
-// IS: IPv6 compatible (maybe; if the BL is support IPv6 requests)
+function check_excludes_list (host) {
+  host = host.split('.').reverse();
+  for (let i=0; i < host.length; i++) {
+    let check;
+    if (i === 0) {
+      check = host[i];
+    }
+    else {
+      check = [ host[i], check ].join('.');
+    }
+    if (excludes[check]) return true;
+  }
+  return false;
+}
+
+// IS: IPv6 compatible (maybe; if the BL supports IPv6 requests)
 exports.do_lookups = function (connection, next, hosts, type) {
   const plugin = this;
 
