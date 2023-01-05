@@ -15,21 +15,6 @@ let schemed    = /(\w{3,16}:\/+(?:\S+@)?([a-zA-Z0-9][a-zA-Z0-9\-.]+\.(?:aero|arp
 
 const excludes = {};
 
-function check_excludes_list (host) {
-  host = host.toLowerCase().split('.').reverse();
-  for (let i=0; i < host.length; i++) {
-    let check;
-    if (i === 0) {
-      check = host[i];
-    }
-    else {
-      check = [ host[i], check ].join('.');
-    }
-    if (excludes[check]) return true;
-  }
-  return false;
-}
-
 exports.register = function () {
 
   // Override regexps if top_level_tlds file is present
@@ -77,7 +62,22 @@ exports.load_uribl_exludes = function () {
   });
 }
 
-// IS: IPv6 compatible (maybe; if the BL is support IPv6 requests)
+function check_excludes_list (host) {
+  host = host.split('.').reverse();
+  for (let i=0; i < host.length; i++) {
+    let check;
+    if (i === 0) {
+      check = host[i];
+    }
+    else {
+      check = [ host[i], check ].join('.');
+    }
+    if (excludes[check]) return true;
+  }
+  return false;
+}
+
+// IS: IPv6 compatible (maybe; if the BL supports IPv6 requests)
 exports.do_lookups = function (connection, next, hosts, type) {
   const plugin = this;
 
@@ -98,8 +98,8 @@ exports.do_lookups = function (connection, next, hosts, type) {
 
   let j;
   const queries = {};
-  for (let i=0; i < hosts.length; i++) {
-    let host = hosts[i].toLowerCase();
+  for (let host of hosts) {
+    host = host.toLowerCase();
     connection.logdebug(plugin, `(${type}) checking: ${host}`);
     // Make sure we have a valid TLD
     if (!net.isIPv4(host) && !net.isIPv6(host) && !tlds.top_level_tlds[(host.split('.').reverse())[0]]) {
@@ -183,9 +183,9 @@ exports.do_lookups = function (connection, next, hosts, type) {
   // Flatten object into array for easier querying
   const queries_to_run = [];
   for (j=0; j < Object.keys(queries).length; j++) {
-    for (let k=0; k < Object.keys(queries[Object.keys(queries)[j]]).length; k++) {
+    for (const query of Object.keys(queries[Object.keys(queries)[j]])) {
       // host/domain, zone
-      queries_to_run.push( [ Object.keys(queries[Object.keys(queries)[j]])[k], Object.keys(queries)[j] ] );
+      queries_to_run.push( [ query, Object.keys(queries)[j] ] );
     }
   }
 
