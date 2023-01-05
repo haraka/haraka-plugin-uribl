@@ -183,9 +183,9 @@ exports.do_lookups = function (connection, next, hosts, type) {
   // Flatten object into array for easier querying
   const queries_to_run = [];
   for (j=0; j < Object.keys(queries).length; j++) {
-    for (const element of Object.keys(queries[Object.keys(queries)[j]])) {
+    for (const query of Object.keys(queries[Object.keys(queries)[j]])) {
       // host/domain, zone
-      queries_to_run.push( [ element, Object.keys(queries)[j] ] );
+      queries_to_run.push( [ query, Object.keys(queries)[j] ] );
     }
   }
 
