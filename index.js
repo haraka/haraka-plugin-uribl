@@ -170,6 +170,9 @@ exports.do_lookups = function (connection, next, hosts, type) {
       }
 
       if (!lookup) continue;
+      if (plugin.cfg[zone].dqs_key) {
+        lookup = `${lookup}.${plugin.cfg[zone].dqs_key}`;
+      }
       if (!queries[zone]) queries[zone] = {};
       if (Object.keys(queries[zone]).length > plugin.cfg.main.max_uris_per_list) {
         connection.logwarn(plugin, `discarding lookup ${lookup} for zone ${zone} maximum query limit reached`);
