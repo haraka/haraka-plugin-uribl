@@ -1,6 +1,10 @@
 
 ### Unreleased
 
+### 1.0.7 - 2023-01-05
+
+- handle Spamhaus DQS (#5): add a dqs_key config option and a [dbl.dq.spamhaus.net] zone, disabled by default
+
 ### 1.0.6 - 2022-11-28
 
 - test: increase timeout for DNSBL test
