@@ -11,7 +11,7 @@ This plugin will discard any domain name that does not have a valid TLD or any I
 Configuration
 -------------
 
-This plugin reads configuration from data.uribl.ini.
+This plugin reads configuration from uribl.ini.
 
 The main section defines global settings for all lists and the blacklists zones are specified as INI section headings with the configuration for each zone within that section.
 
