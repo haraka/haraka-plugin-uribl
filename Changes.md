@@ -1,9 +1,18 @@
 
 ### Unreleased
 
+
+### [1.0.8] - 2023-05-25
+
+#### Changed
+
+- doc(README) Update config file name #9
+
+
 ### 1.0.7 - 2023-01-05
 
 - handle Spamhaus DQS (#5): add a dqs_key config option and a [dbl.dq.spamhaus.net] zone, disabled by default
+
 
 ### 1.0.6 - 2022-11-28
 
@@ -28,3 +37,4 @@
 
 [1.0.4]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.4
 [1.0.6]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.6
+[1.0.8]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.8
