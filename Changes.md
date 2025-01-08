@@ -2,6 +2,7 @@
 
 ### [1.0.9] - 2025-01-08
 
+- ci: update to point to shared configs
 - style: automated code formatting with prettier
 - lint: remove duplicate / stale rules from .eslintrc
 - dep: eslint-plugin-haraka -> @haraka/eslint-config
