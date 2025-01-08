@@ -1,6 +1,5 @@
 [![CI Test Status][ci-img]][ci-url]
 [![Code Climate][clim-img]][clim-url]
-[![NPM][npm-img]][npm-url]
 
 # haraka-plugin-uribl
 
@@ -109,5 +108,3 @@ Other files
 [ci-url]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml
 [clim-img]: https://codeclimate.com/github/haraka/haraka-plugin-uribl/badges/gpa.svg
 [clim-url]: https://codeclimate.com/github/haraka/haraka-plugin-uribl
-[npm-img]: https://nodei.co/npm/haraka-plugin-uribl.png
-[npm-url]: https://www.npmjs.com/package/haraka-plugin-uribl

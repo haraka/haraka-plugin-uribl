@@ -1,11 +1,15 @@
 {
   "name": "haraka-plugin-uribl",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Haraka plugin that checks domains in emails against URI blacklists",
+  "files": [
+    "CHANGELOG.md",
+    "config"
+  ],
   "main": "index.js",
   "scripts": {
     "lint": "npx eslint *.js test/*.js",
-    "lintfix": "npx eslint --fix *.js test/*.js",
+    "lint:fix": "npx eslint --fix *.js test/*.js",
     "versions": "npx dependency-version-checker check",
     "test": "npx mocha"
   },
@@ -25,14 +29,14 @@
   },
   "homepage": "https://github.com/haraka/haraka-plugin-uribl#readme",
   "devDependencies": {
-    "eslint": "8",
-    "eslint-plugin-haraka": "*",
-    "haraka-test-fixtures": "*",
-    "mocha": "9"
+    "eslint": "^9.17.0",
+    "@haraka/eslint-config": "^2.0.2",
+    "haraka-test-fixtures": "^1.3.8",
+    "mocha": "^11.1.0"
   },
   "dependencies": {
-    "haraka-net-utils": "^1.4.1",
-    "haraka-tld": "^1.1.0",
-    "haraka-utils": "^1.0.3"
+    "haraka-net-utils": "^1.7.1",
+    "haraka-tld": "^1.2.2",
+    "haraka-utils": "^1.1.3"
   }
 }

@@ -38,7 +38,6 @@ describe('do_lookups', function () {
   })
 
   it('lookup_test_ip: 127.0.0.2', function (done) {
-    // this.connection.transaction = fixtures.transaction.createTransaction()
     this.plugin.do_lookups(this.connection, (code, msg) => {
       // no result b/c private IP
       assert.equal(code, undefined)
