@@ -1,10 +1,8 @@
-
 ### Unreleased
-
 
 ### [1.0.9] - 2025-01-08
 
-
+- style: automated code formatting with prettier
 - lint: remove duplicate / stale rules from .eslintrc
 - dep: eslint-plugin-haraka -> @haraka/eslint-config
 - populate [files] in package.json. Delete .npmignore.
@@ -33,7 +31,6 @@
 ### 1.0.3 - 2022-07-23
 
 - Import from Haraka
-
 
 [1.0.4]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.4
 [1.0.6]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.6

@@ -7,8 +7,7 @@ This plugin extracts URIs and feeds them to RHS based blacklists such as [DBL][1
 
 This plugin will discard any domain name that does not have a valid TLD or any IP address within RFC1918, 127/8 or 169.254/16 (APIPA) and will convert any URI ending in in-addr.arpa into an IP address lookup.
 
-Configuration
--------------
+## Configuration
 
 This plugin reads configuration from uribl.ini.
 
@@ -16,15 +15,15 @@ The main section defines global settings for all lists and the blacklists zones 
 
 The main section can contain the following options:
 
-* timeout
+- timeout
 
   Default: 30
 
-  The total timeout in seconds for each group of lookups.  Any group of
+  The total timeout in seconds for each group of lookups. Any group of
   lookups that takes longer than this will be aborted and the session
   will continue.
 
-* max\_uris\_per\_list
+- max_uris_per_list
 
   Default: 20
 
@@ -34,76 +33,72 @@ List sections should be named as the zone of the blacklist and can contain the f
 
 At least one of the following must be set for any queries to be run for the blacklist.
 
-* rdns = 1 | true | yes | on | enabled
+- rdns = 1 | true | yes | on | enabled
 
   Check any rDNS names against the list.
 
-* helo = 1 | true | yes | on | enabled
+- helo = 1 | true | yes | on | enabled
 
   Check the EHLO/HELO argument against the list.
 
-* envfrom = 1 | true | yes | on | enabled
+- envfrom = 1 | true | yes | on | enabled
 
   Check the MAIL FROM domain against the list.
 
-* from = 1 | true | yes | on | enabled
+- from = 1 | true | yes | on | enabled
 
   Check the domain portion of the From: header against the list.
 
-* replyto = 1 | true | yes | on | enabled
+- replyto = 1 | true | yes | on | enabled
 
   Check the domain portion of the Reply-To: header against the list.
 
-* msgid = 1 | true | yes | on | enabled
+- msgid = 1 | true | yes | on | enabled
 
   Check the RHS of the Message-Id: header against the list.
 
-* body = 1 | true | yes | on | enabled
+- body = 1 | true | yes | on | enabled
 
   Check any URIs found within the body of the message against the list.
 
 The following are optional for each list:
 
-* custom\_msg
+- custom_msg
 
   A custom rejection message that will be returned to the SMTP client if the list returns a positive result. If found within the string {uri} will be replaced by the URI value looked up and {zone} will be replaced by the blacklist zone name.
 
-* validate
+- validate
 
-  A regular expression that will be tested against the first A record returned by the list.  If it does not evaluate to true then the positive result will be discarded.  Example: ^(?!127\.0\.1\.255)127\. would check that the IP address returned start with 127. and is not 127.0.1.255
+  A regular expression that will be tested against the first A record returned by the list. If it does not evaluate to true then the positive result will be discarded. Example: ^(?!127\.0\.1\.255)127\. would check that the IP address returned start with 127. and is not 127.0.1.255
 
-* bitmask
+- bitmask
 
-  This is optionally used for lists such as [SURBL][3] and [URIBL][4] that return bitmask values in the last octet of the returned IP address to combine multiple lists into a single zone.  Using this you may specify which lists within the zone you want use.
+  This is optionally used for lists such as [SURBL][3] and [URIBL][4] that return bitmask values in the last octet of the returned IP address to combine multiple lists into a single zone. Using this you may specify which lists within the zone you want use.
 
-* no\_ip\_lookups = 1 | true | yes | on | enabled
+- no_ip_lookups = 1 | true | yes | on | enabled
 
   Specifies that no IP addresses should ever be check against this list. This is required for dbl.spamhaus.org.
 
-* strip\_to\_domain= 1 | true | yes | on | enabled
+- strip_to_domain= 1 | true | yes | on | enabled
 
-  Specifies that the list requires hostnames be stripped down to the domain boundaries prior to querying the list.  This is required for the [SURBL][3] and [URIBL][4] lists.
+  Specifies that the list requires hostnames be stripped down to the domain boundaries prior to querying the list. This is required for the [SURBL][3] and [URIBL][4] lists.
 
-Spamhaus DQS
-------------
+## Spamhaus DQS
 
-* dqs_key
+- dqs_key
 
 DQS key for Spamhaus's DQS mirrors.
 
-Other files
------------
+## Other files
 
-* data.uribl.excludes
+- data.uribl.excludes
 
   This contains a list of domains that should never be looked up in any blacklist as they are known good and will never be listed. This helps to keep useless queries to a minimum.
-
 
 [1]: http://www.spamhaus.org/dbl
 [2]: http://spameatingmonkey.com/lists.html#SEM-FRESH
 [3]: http://www.surbl.org/
 [4]: http://www.uribl.com/
-
 [ci-img]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml/badge.svg
 [ci-url]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml
 [clim-img]: https://codeclimate.com/github/haraka/haraka-plugin-uribl/badges/gpa.svg
