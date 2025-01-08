@@ -1,8 +1,8 @@
-'use strict';
+'use strict'
 
 // node.js built-in modules
-const assert   = require('assert')
-const path     = require('path');
+const assert = require('assert')
+const path = require('path')
 
 // npm modules
 const fixtures = require('haraka-test-fixtures')
@@ -13,9 +13,9 @@ const fixtures = require('haraka-test-fixtures')
 
 beforeEach(function () {
   this.plugin = new fixtures.plugin('uribl')
-  this.plugin.config.root_path = path.resolve(__dirname, '../../config');
+  this.plugin.config.root_path = path.resolve(__dirname, '../../config')
 
-  this.plugin.register();
+  this.plugin.register()
 })
 
 describe('uribl', function () {
@@ -32,35 +32,43 @@ describe('load_uribl_ini', function () {
 })
 
 describe('do_lookups', function () {
-
   beforeEach(function () {
-    this.connection = fixtures.connection.createConnection();
+    this.connection = fixtures.connection.createConnection()
   })
 
   it('lookup_test_ip: 127.0.0.2', function (done) {
-    // this.connection.transaction = fixtures.transaction.createTransaction()
-    this.plugin.do_lookups(this.connection, (code, msg) => {
-      // no result b/c private IP
-      assert.equal(code, undefined)
-      assert.equal(msg, undefined)
-      done()
-    }, ['127.0.0.2'], 'body')
+    this.plugin.do_lookups(
+      this.connection,
+      (code, msg) => {
+        // no result b/c private IP
+        assert.equal(code, undefined)
+        assert.equal(msg, undefined)
+        done()
+      },
+      ['127.0.0.2'],
+      'body',
+    )
   })
 
   it('lookup_test_ip: test.uribl.com', function (done) {
     this.timeout(4000)
-    this.plugin.do_lookups(this.connection, (code, msg) => {
-      if (code) console.log(`code: ${code}, ${msg}`)
-      assert.equal(code, undefined)
-      assert.equal(msg, undefined)
-      done()
-    }, ['test.uribl.com'], 'body')
+    this.plugin.do_lookups(
+      this.connection,
+      (code, msg) => {
+        if (code) console.log(`code: ${code}, ${msg}`)
+        assert.equal(code, undefined)
+        assert.equal(msg, undefined)
+        done()
+      },
+      ['test.uribl.com'],
+      'body',
+    )
   })
 })
 
 describe('lookup_remote_ip', function () {
   beforeEach(function () {
-    this.connection = fixtures.connection.createConnection();
+    this.connection = fixtures.connection.createConnection()
   })
 
   it('lookup_remote_ip: 66.128.51.165', function (done) {
