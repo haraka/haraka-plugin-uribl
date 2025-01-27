@@ -1,4 +1,12 @@
+# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/).
+
 ### Unreleased
+
+### [1.0.10] - 2025-01-26
+
+- prettier: move config into package.json
 
 ### [1.0.9] - 2025-01-08
 
@@ -34,7 +42,10 @@
 
 - Import from Haraka
 
-[1.0.4]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.4
-[1.0.6]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.6
-[1.0.8]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.8
-[1.0.9]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/1.0.9
+[1.0.3]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.3
+[1.0.4]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.4
+[1.0.6]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.6
+[1.0.7]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.7
+[1.0.8]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.8
+[1.0.9]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.9
+[1.0.10]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.10
