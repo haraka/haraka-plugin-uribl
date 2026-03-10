@@ -1,8 +1,8 @@
 'use strict'
 
 // node.js built-in modules
-const assert = require('assert')
-const path = require('path')
+const assert = require('node:assert')
+const path = require('node:path')
 
 // npm modules
 const fixtures = require('haraka-test-fixtures')
@@ -36,33 +36,37 @@ describe('do_lookups', function () {
     this.connection = fixtures.connection.createConnection()
   })
 
-  it('lookup_test_ip: 127.0.0.2', function (done) {
-    this.plugin.do_lookups(
-      this.connection,
-      (code, msg) => {
-        // no result b/c private IP
-        assert.equal(code, undefined)
-        assert.equal(msg, undefined)
-        done()
-      },
-      ['127.0.0.2'],
-      'body',
-    )
+  it('lookup_test_ip: 127.0.0.2', async function () {
+    await new Promise((resolve) => {
+      this.plugin.do_lookups(
+        this.connection,
+        (code, msg) => {
+          // no result b/c private IP
+          assert.equal(code, undefined)
+          assert.equal(msg, undefined)
+          resolve()
+        },
+        ['127.0.0.2'],
+        'body',
+      )
+    })
   })
 
-  it('lookup_test_ip: test.uribl.com', function (done) {
+  it('lookup_test_ip: test.uribl.com', async function () {
     this.timeout(4000)
-    this.plugin.do_lookups(
-      this.connection,
-      (code, msg) => {
-        if (code) console.log(`code: ${code}, ${msg}`)
-        assert.equal(code, undefined)
-        assert.equal(msg, undefined)
-        done()
-      },
-      ['test.uribl.com'],
-      'body',
-    )
+    await new Promise((resolve) => {
+      this.plugin.do_lookups(
+        this.connection,
+        (code, msg) => {
+          if (code) console.log(`code: ${code}, ${msg}`)
+          assert.equal(code, undefined)
+          assert.equal(msg, undefined)
+          resolve()
+        },
+        ['test.uribl.com'],
+        'body',
+      )
+    })
   })
 })
 
@@ -71,13 +75,15 @@ describe('lookup_remote_ip', function () {
     this.connection = fixtures.connection.createConnection()
   })
 
-  it('lookup_remote_ip: 66.128.51.165', function (done) {
+  it('lookup_remote_ip: 66.128.51.165', async function () {
     this.connection.remote.ip = '66.128.51.165'
-    this.plugin.lookup_remote_ip((code, msg) => {
-      assert.equal(code, undefined)
-      assert.equal(msg, undefined)
-      // console.log(`test, code: ${code}, msg: ${msg}`)
-      done()
-    }, this.connection)
+    await new Promise((resolve) => {
+      this.plugin.lookup_remote_ip((code, msg) => {
+        assert.equal(code, undefined)
+        assert.equal(msg, undefined)
+        // console.log(`test, code: ${code}, msg: ${msg}`)
+        resolve()
+      }, this.connection)
+    })
   })
 })
