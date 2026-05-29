@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Unreleased
 
+- test: refactored against test-fixtures 1.7.0
+
 ### [1.0.10] - 2025-01-26
 
 - prettier: move config into package.json

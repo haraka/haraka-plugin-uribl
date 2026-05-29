@@ -1,7 +1,6 @@
-[![CI Test Status][ci-img]][ci-url]
-[![Code Climate][clim-img]][clim-url]
-
 # haraka-plugin-uribl
+
+[![Test][ci-img]][ci-url] [![Cover][cov-img]][cov-url] [![Qlty][qlty-img]][qlty-url]
 
 This plugin extracts URIs and feeds them to RHS based blacklists such as [DBL][1] and [SEM-FRESH][2] and body URI based DNS blacklists such as [SURBL][3] and [URIBL][4].
 
@@ -95,11 +94,15 @@ DQS key for Spamhaus's DQS mirrors.
 
   This contains a list of domains that should never be looked up in any blacklist as they are known good and will never be listed. This helps to keep useless queries to a minimum.
 
+<!-- leave these buried at the bottom of the document -->
+
+[ci-img]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml/badge.svg
+[ci-url]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml
+[cov-img]: https://codecov.io/github/haraka/haraka-plugin-uribl/coverage.svg
+[cov-url]: https://codecov.io/github/haraka/haraka-plugin-uribl
+[qlty-img]: https://qlty.sh/gh/haraka/projects/haraka-plugin-uribl/maintainability.svg
+[qlty-url]: https://qlty.sh/gh/haraka/projects/haraka-plugin-uribl
 [1]: http://www.spamhaus.org/dbl
 [2]: http://spameatingmonkey.com/lists.html#SEM-FRESH
 [3]: http://www.surbl.org/
 [4]: http://www.uribl.com/
-[ci-img]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml/badge.svg
-[ci-url]: https://github.com/haraka/haraka-plugin-uribl/actions/workflows/ci.yml
-[clim-img]: https://codeclimate.com/github/haraka/haraka-plugin-uribl/badges/gpa.svg
-[clim-url]: https://codeclimate.com/github/haraka/haraka-plugin-uribl
