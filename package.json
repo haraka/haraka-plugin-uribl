@@ -35,13 +35,13 @@
   },
   "homepage": "https://github.com/haraka/haraka-plugin-uribl#readme",
   "devDependencies": {
-    "@haraka/eslint-config": "^2.0.4",
+    "@haraka/eslint-config": "^3.0.0",
     "haraka-test-fixtures": "^1.7.0"
   },
   "dependencies": {
-    "haraka-net-utils": "^1.7.2",
-    "haraka-tld": "^1.3.0",
-    "haraka-utils": "^1.1.4"
+    "haraka-net-utils": "^1.9.0",
+    "haraka-tld": "^1.3.5",
+    "haraka-utils": "^2.1.0"
   },
   "prettier": {
     "singleQuote": true,
