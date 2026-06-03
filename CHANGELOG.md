@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 - security: bound URL-extraction regexes to stop polynomial ReDoS on the body
 - security: parse From/Reply-To/Message-ID per RFC 5322 to stop domain spoofing
+- fix: bound DNS queries with a dedicated resolver (~5s) vs c-ares (~25s) default
 - fix: escape the dot in inAddrArpaToIP (correctness + ReDoS)
 - fix: validate TLDs against haraka-tld Sets; rebuild extractors for modern gTLDs
 - fix: don't record a pass after a reject

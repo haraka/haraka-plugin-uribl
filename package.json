@@ -1,6 +1,6 @@
 {
   "name": "haraka-plugin-uribl",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Haraka plugin that checks domains in emails against URI blacklists",
   "files": [
     "CHANGELOG.md",

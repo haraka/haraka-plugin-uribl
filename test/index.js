@@ -2,11 +2,11 @@
 
 // assert: https://nodejs.org/api/assert.html
 const assert = require('node:assert')
-const dns = require('node:dns')
 const { before, after, beforeEach, describe, it } = require('node:test')
 
 const net_utils = require('haraka-net-utils')
 const tlds = require('haraka-tld')
+const uribl = require('../index.js')
 const {
   makeConnection,
   makePlugin,
@@ -407,7 +407,10 @@ describe('do_lookups', () => {
     assert.equal(result, undefined)
   })
 
-  it('lookup_test_ip: test.uribl.com', { timeout: 4000 }, async () => {
+  // Real DNS. Each query is bounded to ~5s by the plugin's resolver, so a
+  // blocked/slow public DNSBL rejects (treated as "not listed") well within
+  // this budget instead of hanging on the c-ares default (~25s).
+  it('lookup_test_ip: test.uribl.com', { timeout: 8000 }, async () => {
     const result = await plugin.do_lookups(
       connection,
       ['test.uribl.com'],
@@ -437,12 +440,12 @@ describe('do_lookups (local resolver)', () => {
   before(async () => {
     await tlds.ready
     dnsServer = await require('haraka-test-fixtures').dns.start()
-    savedServers = dns.getServers()
-    dns.setServers([`127.0.0.1:${dnsServer.port}`])
+    savedServers = uribl.resolver.getServers()
+    uribl.resolver.setServers([`127.0.0.1:${dnsServer.port}`])
   })
 
   after(async () => {
-    dns.setServers(savedServers)
+    uribl.resolver.setServers(savedServers)
     await dnsServer.close()
   })
 

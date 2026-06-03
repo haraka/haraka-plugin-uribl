@@ -8,6 +8,12 @@ const tlds = require('haraka-tld')
 const net_utils = require('haraka-net-utils')
 const utils = require('haraka-utils')
 
+// A blocked/dropped DNSBL query hangs on the c-ares default for ~25s; a bounded
+// resolver rejects it in a few seconds so a slow zone can't stall the whole
+// transaction (the hook timeout is the overall budget, this caps each lookup).
+const resolver = new dns.Resolver({ tries: 2, timeout: 1500 })
+exports.resolver = resolver
+
 // Regexps to extract URIs from the message.
 const numeric_ip =
   /\w{3,16}:\/{1,3}(?:[^\s/@]{1,64}@)?(\d+|0[xX][0-9A-Fa-f]+)\.(\d+|0[xX][0-9A-Fa-f]+)\.(\d+|0[xX][0-9A-Fa-f]+)\.(\d+|0[xX][0-9A-Fa-f]+)/gi
@@ -280,7 +286,7 @@ exports.checkQuery = async function (connection, uri, zone) {
 
   let addrs
   try {
-    addrs = await dns.resolve4(lookup)
+    addrs = await resolver.resolve4(lookup)
   } catch (err) {
     connection.logdebug(this, `${lookup} => (${err})`)
     throw err
@@ -357,7 +363,7 @@ exports.lookup_remote_ip = async function (next, connection) {
   const result = await withTimeout(this, connection, 'rdns', async () => {
     let rdns
     try {
-      rdns = await dns.reverse(connection.remote.ip)
+      rdns = await resolver.reverse(connection.remote.ip)
     } catch (err) {
       // ENOTFOUND covers both NXDOMAIN and a name with no PTR record
       if (err.code !== dns.NOTFOUND) connection.results.add(this, { err })
