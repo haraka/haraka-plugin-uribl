@@ -4,7 +4,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Unreleased
 
+### [1.2.0] - 2026-06-03
+
+- fix: off-by-one in max_uris_per_list
+- fix: typoed phase label in lookup_header_zones
+- fix: hot-reload uribl.excludes
+- doc: README documents not_ipv6_compatible zone option
+- refactor: split do_lookups into 5 helpers
+- chore: drop unused node:https import
 - test: refactored against test-fixtures 1.7.0
+- test: cover do_lookups and hooks via fixtures.dns
+- test: raise coverage from 51 to 98%
 
 ### [1.0.10] - 2025-01-26
 
@@ -51,3 +61,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 [1.0.8]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.8
 [1.0.9]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.9
 [1.0.10]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.10
+[1.2.0]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.2.0

@@ -82,6 +82,10 @@ The following are optional for each list:
 
   Specifies that the list requires hostnames be stripped down to the domain boundaries prior to querying the list. This is required for the [SURBL][3] and [URIBL][4] lists.
 
+- not_ipv6_compatible = 1 | true | yes | on | enabled
+
+  Skip this zone for IPv6 clients. Use when a list publishes only A records.
+
 ## Spamhaus DQS
 
 - dqs_key

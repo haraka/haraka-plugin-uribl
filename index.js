@@ -1,10 +1,10 @@
 // Look up URLs in SURBL
 
-const url = require('url')
-const dns = require('dns')
-const net = require('net')
-const tlds = require('haraka-tld')
+const url = require('node:url')
+const dns = require('node:dns')
+const net = require('node:net')
 
+const tlds = require('haraka-tld')
 const net_utils = require('haraka-net-utils')
 const utils = require('haraka-utils')
 
@@ -15,8 +15,7 @@ let schemeless =
   /(?:%(?:25)?(?:2F|3D|40))?((?:www\.)?[a-zA-Z0-9][a-zA-Z0-9\-.]{0,250}\.(?:aero|arpa|asia|biz|cat|com|coop|edu|gov|info|int|jobs|mil|mobi|museum|name|net|org|pro|tel|travel|xxx|[a-zA-Z]{2}))(?!\w)/gi
 let schemed =
   /(\w{3,16}:\/+(?:\S+@)?([a-zA-Z0-9][a-zA-Z0-9\-.]+\.(?:aero|arpa|asia|biz|cat|com|coop|edu|gov|info|int|jobs|mil|mobi|museum|name|net|org|pro|tel|travel|xxx|[a-zA-Z]{2})))(?!\w)/gi
-
-const excludes = {}
+const isTruthy = (val) => /^(?:1|true|yes|enabled|on)$/i.test(val)
 
 exports.register = function () {
   // Override regexps if top_level_tlds file is present
@@ -44,9 +43,8 @@ exports.register = function () {
 }
 
 exports.load_uribl_ini = function () {
-  const plugin = this
   this.cfg = this.config.get('uribl.ini', () => {
-    plugin.load_uribl_ini()
+    this.load_uribl_ini()
   })
 
   this.zones = Object.keys(this.cfg).filter((a) => a !== 'main')
@@ -58,177 +56,214 @@ exports.load_uribl_ini = function () {
 }
 
 exports.load_uribl_exludes = function () {
-  this.config.get('uribl.excludes', 'list').forEach((domain) => {
-    excludes[domain.toLowerCase()] = 1
+  const newExcludes = new Set()
+  const rawDomains = this.config.get('uribl.excludes', 'list', () => {
+    this.load_uribl_exludes()
   })
+  for (const d of rawDomains) {
+    newExcludes.add(d.toLowerCase())
+  }
+  this.excludes = newExcludes
 }
 
-function check_excludes_list(host) {
-  host = host.split('.').reverse()
-  for (let i = 0; i < host.length; i++) {
-    let check
-    if (i === 0) {
-      check = host[i]
-    } else {
-      check = [host[i], check].join('.')
-    }
-    if (excludes[check]) return true
+exports.isExcluded = function (host) {
+  const parts = host.split('.')
+  for (let i = parts.length - 1; i >= 0; i--) {
+    // host.example.com (i=1,0): example.com -> host.example.com
+    if (this.excludes.has(parts.slice(i).join('.'))) return true
   }
   return false
 }
 
-// IS: IPv6 compatible (maybe; if the BL supports IPv6 requests)
-exports.do_lookups = function (connection, next, hosts, type) {
-  const plugin = this
+exports.isValidTLD = function (host) {
+  const tld = host.split('.').slice(-1)[0]
+  return !net.isIPv4(host) && !net.isIPv6(host) && !tlds.top_level_tlds[tld]
+}
 
-  // Store the results in the correct place based on the lookup type
+exports.inAddrArpaToIP = (host) => {
+  const strippedHost = host.replace(/^\d+(?:.\d+)?\//, '')
+  const arpa = strippedHost.split(/\./).reverse()
+  if (arpa.shift() !== 'arpa') return host
+  const ip_format = arpa.shift()
+  if (ip_format === 'in-addr') {
+    if (arpa.length < 4) return host // Only full IP addresses
+    host = arpa.join('.')
+  } else if (ip_format === 'ip6') {
+    if (arpa.length < 32) return host // Only full IP addresses
+    host = arpa.join('.')
+  }
+  return host
+}
+
+exports.getIPv4Lookup = function (host, zone, results) {
+  if (isTruthy(this.cfg[zone].no_ip_lookups)) {
+    results.add(this, {
+      skip: `IP (${host}) disabled for ${zone}`,
+    })
+    return
+  }
+
+  if (net_utils.is_private_ip(host)) {
+    results.add(this, { skip: 'private IP' })
+    return
+  }
+
+  return host.split(/\./).reverse().join('.')
+}
+
+exports.getIPv6Lookup = function (host, zone, results) {
+  if (
+    isTruthy(this.cfg[zone].not_ipv6_compatible) ||
+    isTruthy(this.cfg[zone].no_ip_lookups)
+  ) {
+    results.add(this, {
+      skip: `IP (${host}) disabled for ${zone}`,
+    })
+    return
+  }
+
+  if (net_utils.is_private_ip(host)) {
+    results.add(this, { skip: 'private IP' })
+    return
+  }
+
+  return net_utils.ipv6_reverse(host)
+}
+
+exports.do_lookups = function (connection, next, hosts, type) {
   const results = connection?.transaction?.results || connection?.results
   if (!results) return next()
 
   if (typeof hosts === 'string') hosts = [hosts]
 
   if (!hosts || !hosts.length) {
-    connection.logdebug(plugin, `(${type}) no items found for lookup`)
-    results.add(plugin, { skip: type })
+    connection.logdebug(this, `(${type}) no items found for lookup`)
+    results.add(this, { skip: type })
     return next()
   }
 
-  connection.logdebug(
-    plugin,
-    `(${type}) found ${hosts.length} items for lookup`,
-  )
+  connection.logdebug(this, `(${type}) found ${hosts.length} items for lookup`)
+
+  const queries_to_run = this.collectQueries(connection, hosts, type, results)
+
+  if (!queries_to_run.length) {
+    results.add(this, { skip: `${type} (no queries)` })
+    return next()
+  }
+
+  this.runQueries(connection, next, queries_to_run, type, results)
+}
+
+// Turn the candidate hosts into a flat [lookup, zone] worklist, recording a
+// skip result for every host/zone pair that is filtered out along the way.
+exports.collectQueries = function (connection, hosts, type, results) {
   utils.shuffle(hosts)
 
-  let j
   const queries = {}
   for (let host of hosts) {
     host = host.toLowerCase()
-    connection.logdebug(plugin, `(${type}) checking: ${host}`)
-    // Make sure we have a valid TLD
-    if (
-      !net.isIPv4(host) &&
-      !net.isIPv6(host) &&
-      !tlds.top_level_tlds[host.split('.').reverse()[0]]
-    ) {
+    connection.logdebug(this, `(${type}) checking: ${host}`)
+
+    if (!this.isValidTLD(host)) continue
+
+    if (this.isExcluded(host)) {
+      results.add(this, { skip: `excluded domain:${host}` })
       continue
     }
-    // Check the exclusion list
-    if (check_excludes_list(host)) {
-      results.add(plugin, { skip: `excluded domain:${host}` })
-      continue
-    }
-    // Loop through the zones
-    for (j = 0; j < plugin.zones.length; j++) {
-      const zone = plugin.zones[j]
-      if (zone === 'main') continue // skip config
-      if (
-        !plugin.cfg[zone] ||
-        (plugin.cfg[zone] &&
-          !/^(?:1|true|yes|enabled|on)$/i.test(plugin.cfg[zone][type]))
-      ) {
-        results.add(plugin, { skip: `${type} unsupported for ${zone}` })
+
+    for (const zone of this.zones) {
+      if (zone === 'main') continue
+      if (!this.cfg[zone] || !isTruthy(this.cfg[zone][type])) {
+        results.add(this, { skip: `${type} disabled for ${zone}` })
         continue
       }
-      // Convert in-addr.arpa into bare IPv4/v6 lookup
-      const arpa = host.split(/\./).reverse()
-      if (arpa.shift() === 'arpa') {
-        const ip_format = arpa.shift()
-        if (ip_format === 'in-addr') {
-          if (arpa.length < 4) continue // Only full IP addresses
-          host = arpa.join('.')
-        } else if (ip_format === 'ip6') {
-          if (arpa.length < 32) continue // Only full IP addresses
-          host = arpa.join('.')
-        }
-      }
-      let lookup
 
-      // Handle zones that do not allow IP queries (e.g. Spamhaus DBL)
-      if (net.isIPv4(host)) {
-        if (
-          /^(?:1|true|yes|enabled|on)$/i.test(plugin.cfg[zone].no_ip_lookups)
-        ) {
-          results.add(plugin, {
-            skip: `IP (${host}) not supported for ${zone}`,
-          })
-          continue
-        }
-        // Skip any private IPs
-        if (net_utils.is_private_ip(host)) {
-          results.add(plugin, { skip: 'private IP' })
-          continue
-        }
-        // Reverse IP for lookup
-        lookup = host.split(/\./).reverse().join('.')
-      } else if (net.isIPv6(host)) {
-        if (
-          /^(?:1|true|yes|enabled|on)$/i.test(
-            plugin.cfg[zone].not_ipv6_compatible,
-          ) ||
-          /^(?:1|true|yes|enabled|on)$/i.test(plugin.cfg[zone].no_ip_lookups)
-        ) {
-          results.add(plugin, {
-            skip: `IP (${host}) not supported for ${zone}`,
-          })
-          continue
-        }
-        // Skip any private IPs
-        if (net_utils.is_private_ip(host)) {
-          results.add(plugin, { skip: 'private IP' })
-          continue
-        }
-        // Reverse IP for lookup
-        lookup = net_utils.ipv6_reverse(host)
-      }
-      // Handle zones that require host to be stripped to a domain boundary
-      else if (
-        /^(?:1|true|yes|enabled|on)$/i.test(plugin.cfg[zone].strip_to_domain)
-      ) {
-        lookup = tlds.split_hostname(host, 3)[1]
-      }
-      // Anything else..
-      else {
-        lookup = host
-      }
-
+      const lookup = this.buildLookup(host, zone, results)
       if (!lookup) continue
-      if (plugin.cfg[zone].dqs_key) {
-        lookup = `${lookup}.${plugin.cfg[zone].dqs_key}`
-      }
+
       if (!queries[zone]) queries[zone] = {}
       if (
-        Object.keys(queries[zone]).length > plugin.cfg.main.max_uris_per_list
+        Object.keys(queries[zone]).length >= this.cfg.main.max_uris_per_list
       ) {
         connection.logwarn(
-          plugin,
+          this,
           `discarding lookup ${lookup} for zone ${zone} maximum query limit reached`,
         )
-        results.add(plugin, { skip: `max query limit for ${zone}` })
+        results.add(this, { skip: `max query limit for ${zone}` })
         continue
       }
       queries[zone][lookup] = 1
     }
   }
 
-  // Flatten object into array for easier querying
   const queries_to_run = []
-  for (j = 0; j < Object.keys(queries).length; j++) {
-    for (const query of Object.keys(queries[Object.keys(queries)[j]])) {
-      // host/domain, zone
-      queries_to_run.push([query, Object.keys(queries)[j]])
+  for (const zone of Object.keys(queries)) {
+    for (const lookup of Object.keys(queries[zone])) {
+      queries_to_run.push([lookup, zone])
     }
   }
+  return queries_to_run
+}
 
-  if (!queries_to_run.length) {
-    results.add(plugin, { skip: `${type} (no queries)` })
-    return next()
+// Derive the name to look up for one host in one zone, or undefined when the
+// host should be skipped for that zone (private/disabled IP, etc).
+exports.buildLookup = function (host, zone, results) {
+  host = this.inAddrArpaToIP(host)
+
+  let lookup
+  if (net.isIPv4(host)) {
+    lookup = this.getIPv4Lookup(host, zone, results)
+  } else if (net.isIPv6(host)) {
+    lookup = this.getIPv6Lookup(host, zone, results)
+  } else if (isTruthy(this.cfg[zone].strip_to_domain)) {
+    lookup = tlds.split_hostname(host, 3)[1]
+  } else {
+    lookup = host
   }
 
-  utils.shuffle(queries_to_run) // Randomize the order
+  if (!lookup) return
+  if (this.cfg[zone].dqs_key) lookup = `${lookup}.${this.cfg[zone].dqs_key}`
+  return lookup
+}
 
-  // Perform the lookups
+// Decide what a zone's A record means: 'listed' rejects, 'validate-fail' and
+// 'bitmask-miss' ignore the answer.
+exports.classifyResult = function (zoneCfg = {}, addrs) {
+  if (zoneCfg.validate && !new RegExp(zoneCfg.validate).test(addrs[0])) {
+    return 'validate-fail'
+  }
+
+  // A bitmask zone returns a single result; we only support a bitmask of up
+  // to 128 in a single octet.
+  if (zoneCfg.bitmask) {
+    const last_octet = Number(addrs[0].split('.')[3])
+    return (last_octet & Number(zoneCfg.bitmask)) > 0
+      ? 'listed'
+      : 'bitmask-miss'
+  }
+
+  return 'listed'
+}
+
+exports.formatRejectMessage = function (zone, uri) {
+  const custom_msg = this.cfg[zone]?.custom_msg
+  if (custom_msg) {
+    return custom_msg.replace(/\{uri\}/g, uri).replace(/\{zone\}/g, zone)
+  }
+  return `${uri} blacklisted in ${zone}`
+}
+
+exports.runQueries = function (
+  connection,
+  next,
+  queries_to_run,
+  type,
+  results,
+) {
+  const plugin = this
+  utils.shuffle(queries_to_run)
+
   let pending_queries = 0
-
   let called_next = false
   function nextOnce(code, msg) {
     if (called_next) return
@@ -236,18 +271,15 @@ exports.do_lookups = function (connection, next, hosts, type) {
     next(code, msg)
   }
 
-  function conclude_if_no_pending() {
+  const conclude_if_no_pending = () => {
     if (pending_queries !== 0) return
     results.add(plugin, { pass: type })
     nextOnce()
   }
 
-  queries_to_run.forEach((query) => {
-    let lookup = query.join('.')
-    // Add root dot if necessary
-    if (lookup[lookup.length - 1] !== '.') {
-      lookup = `${lookup}.`
-    }
+  for (const [uri, zone] of queries_to_run) {
+    let lookup = `${uri}.${zone}`
+    if (lookup[lookup.length - 1] !== '.') lookup = `${lookup}.`
 
     pending_queries++
     dns.resolve4(lookup, (err, addrs) => {
@@ -259,64 +291,34 @@ exports.do_lookups = function (connection, next, hosts, type) {
 
       if (err) return conclude_if_no_pending()
 
-      let skip = false
-      function do_reject(msg) {
-        if (skip) return
-        if (called_next) return
-        if (!msg) msg = `${query[0]} blacklisted in ${query[1]}`
-
-        // Check for custom message
-        if (plugin.cfg[query[1]] && plugin.cfg[query[1]].custom_msg) {
-          msg = plugin.cfg[query[1]].custom_msg
-            .replace(/\{uri\}/g, query[0])
-            .replace(/\{zone\}/g, query[1])
-        }
-        results.add(plugin, { fail: [type, query[0], query[1]].join('/') })
-        nextOnce(DENY, msg)
-      }
-
-      // Optionally validate first result against a regexp
-      if (plugin.cfg[query[1]] && plugin.cfg[query[1]].validate) {
-        const re = new RegExp(plugin.cfg[query[1]].validate)
-        if (!re.test(addrs[0])) {
+      switch (plugin.classifyResult(plugin.cfg[zone], addrs)) {
+        case 'listed':
+          if (!called_next) {
+            connection.loginfo(
+              plugin,
+              `found ${uri} in zone ${zone} (${addrs.join(',')})`,
+            )
+            results.add(plugin, { fail: [type, uri, zone].join('/') })
+            nextOnce(DENY, plugin.formatRejectMessage(zone, uri))
+          }
+          break
+        case 'validate-fail':
           connection.logwarn(
             plugin,
             `ignoring result (${addrs[0]}) for: ${lookup} as it did not match validation rule`,
           )
-          skip = true
-        }
-      }
-
-      // Check for optional bitmask
-      if (plugin.cfg[query[1]] && plugin.cfg[query[1]].bitmask) {
-        // A bitmask zone should only return a single result
-        // We only support a bitmask of up to 128 in a single octet
-        const last_octet = Number(addrs[0].split('.')[3])
-        const bitmask = Number(plugin.cfg[query[1]].bitmask)
-        if ((last_octet & bitmask) > 0) {
-          connection.loginfo(
-            plugin,
-            `found ${query[0]} in zone ${query[1]} (${addrs.join(',')}; bitmask=${bitmask})`,
-          )
-          do_reject()
-        } else {
+          break
+        case 'bitmask-miss':
           connection.logdebug(
             plugin,
             `ignoring result (${addrs[0]}) for: ${lookup} as the bitmask did not match`,
           )
-          skip = true
-        }
-      } else {
-        connection.loginfo(
-          plugin,
-          `found ${query[0]} in zone ${query[1]} (${addrs.join(',')})`,
-        )
-        do_reject()
+          break
       }
 
       conclude_if_no_pending()
     })
-  })
+  }
 
   conclude_if_no_pending()
 }
@@ -345,9 +347,7 @@ function getTimedNext(plugin, connection, next, type) {
 }
 
 exports.lookup_remote_ip = function (next, connection) {
-  const plugin = this
-
-  const timedNext = getTimedNext(plugin, connection, next, 'rdns')
+  const timedNext = getTimedNext(this, connection, next, 'rdns')
 
   dns.reverse(connection.remote.ip, (err, rdns) => {
     if (err) {
@@ -356,12 +356,14 @@ exports.lookup_remote_ip = function (next, connection) {
         case dns.NOTFOUND:
           break
         default:
-          connection.results.add(plugin, { err })
+          connection.results.add(this, { err })
       }
       return timedNext()
     }
-    // console.log(`lookup_remote_ip, ${connection.remote.ip} resolves to ${rdns}`)
-    plugin.do_lookups(connection, timedNext, rdns, 'rdns')
+    this.logdebug(
+      `lookup_remote_ip, ${connection.remote.ip} resolves to ${rdns}`,
+    )
+    this.do_lookups(connection, timedNext, rdns, 'rdns')
   })
 }
 
@@ -395,39 +397,32 @@ exports.lookup_header_zones = function (next, connection) {
   const email_re = /<?[^@]+@([^> ]+)>?/
   const plugin = this
   const trans = connection.transaction
-  const timedNext = getTimedNext(this, connection, next, 'ms, typeg')
+  const timedNext = getTimedNext(this, connection, next, 'data')
 
-  // From header
   function do_from_header(cb) {
-    const from = trans.header.get_decoded('from')
-    const fmatch = email_re.exec(from)
+    const fmatch = email_re.exec(trans.header.get_decoded('from'))
     if (fmatch) {
       return plugin.do_lookups(connection, cb, fmatch[1], 'from')
     }
     cb()
   }
 
-  // Reply-To header
   function do_replyto_header(cb) {
-    const replyto = trans.header.get('reply-to')
-    const rmatch = email_re.exec(replyto)
+    const rmatch = email_re.exec(trans.header.get('reply-to'))
     if (rmatch) {
       return plugin.do_lookups(connection, cb, rmatch[1], 'replyto')
     }
     cb()
   }
 
-  // Message-Id header
   function do_msgid_header(cb) {
-    const msgid = trans.header.get('message-id')
-    const mmatch = /@([^>]+)>/.exec(msgid)
+    const mmatch = /@([^>]+)>/.exec(trans.header.get('message-id'))
     if (mmatch) {
       return plugin.do_lookups(connection, cb, mmatch[1], 'msgid')
     }
     cb()
   }
 
-  // Body
   function do_body(cb) {
     const urls = {}
     extract_urls(urls, trans.body, connection, plugin)
