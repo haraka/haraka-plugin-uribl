@@ -38,15 +38,24 @@ describe('uribl', () => {
 })
 
 describe('register', () => {
-  it('rebuilds regexps when a TLD file is present', () => {
+  it('buildExtractRegexps is a no-op until the TLD set loads', () => {
     const saved = tlds.top_level_tlds
-    tlds.top_level_tlds = { com: 1, net: 1, org: 1 }
+    tlds.top_level_tlds = new Set()
     try {
-      plugin.register()
+      assert.doesNotThrow(() => plugin.buildExtractRegexps())
     } finally {
       tlds.top_level_tlds = saved
     }
-    assert.ok(plugin.zones.length)
+  })
+
+  it('buildExtractRegexps rebuilds from the TLD set', () => {
+    const saved = tlds.top_level_tlds
+    tlds.top_level_tlds = new Set(['com', 'net', 'example'])
+    try {
+      assert.doesNotThrow(() => plugin.buildExtractRegexps())
+    } finally {
+      tlds.top_level_tlds = saved
+    }
   })
 
   it('aborts and registers no hooks when no zones are configured', () => {
@@ -109,6 +118,21 @@ describe('inAddrArpaToIP', () => {
 
   it('leaves partial in-addr.arpa names alone', () => {
     assert.equal(plugin.inAddrArpaToIP('1.2.in-addr.arpa'), '1.2.in-addr.arpa')
+  })
+
+  it('only strips a real numeric CIDR prefix (escaped dot)', () => {
+    assert.equal(
+      plugin.inAddrArpaToIP('1a2/3.4.5.6.in-addr.arpa'),
+      '6.5.4.1a2/3',
+    )
+  })
+
+  it('runs in linear time on long numeric input', () => {
+    const evil = `${'9'.repeat(50000)}a`
+    const start = process.hrtime.bigint()
+    plugin.inAddrArpaToIP(evil)
+    const ms = Number(process.hrtime.bigint() - start) / 1e6
+    assert.ok(ms < 100, `inAddrArpaToIP took ${ms}ms`)
   })
 })
 
@@ -200,8 +224,20 @@ describe('getIPv6Lookup', () => {
 })
 
 describe('isValidTLD', () => {
-  it('accepts a hostname', () => {
+  before(async () => {
+    await tlds.ready
+  })
+
+  it('accepts a recognized TLD', () => {
     assert.equal(plugin.isValidTLD('example.com'), true)
+  })
+
+  it('accepts a modern gTLD', () => {
+    assert.equal(plugin.isValidTLD('example.xyz'), true)
+  })
+
+  it('rejects an unrecognized TLD', () => {
+    assert.equal(plugin.isValidTLD('host.invalidtld'), false)
   })
 
   it('rejects an IPv4 address', () => {
@@ -210,6 +246,16 @@ describe('isValidTLD', () => {
 
   it('rejects an IPv6 address', () => {
     assert.equal(plugin.isValidTLD('2001:db8::1'), false)
+  })
+
+  it('falls open while the TLD set is still loading', () => {
+    const saved = tlds.top_level_tlds
+    tlds.top_level_tlds = new Set()
+    try {
+      assert.equal(plugin.isValidTLD('host.invalidtld'), true)
+    } finally {
+      tlds.top_level_tlds = saved
+    }
   })
 })
 
@@ -357,29 +403,17 @@ describe('do_lookups', () => {
   })
 
   it('lookup_test_ip: 127.0.0.2', async () => {
-    const [code, msg] = await new Promise((resolve) => {
-      plugin.do_lookups(
-        connection,
-        (...args) => resolve(args),
-        ['127.0.0.2'],
-        'body',
-      )
-    })
-    assert.equal(code, undefined)
-    assert.equal(msg, undefined)
+    const result = await plugin.do_lookups(connection, ['127.0.0.2'], 'body')
+    assert.equal(result, undefined)
   })
 
   it('lookup_test_ip: test.uribl.com', { timeout: 4000 }, async () => {
-    const [rc, msg] = await new Promise((resolve) => {
-      plugin.do_lookups(
-        connection,
-        (...args) => resolve(args),
-        ['test.uribl.com'],
-        'body',
-      )
-    })
-    assert.equal(rc, undefined)
-    assert.equal(msg, undefined)
+    const result = await plugin.do_lookups(
+      connection,
+      ['test.uribl.com'],
+      'body',
+    )
+    assert.equal(result, undefined)
   })
 
   it('lookup_remote_ip: 66.128.51.165', async () => {
@@ -417,10 +451,10 @@ describe('do_lookups (local resolver)', () => {
     connection = makeConnection()
   })
 
-  const runLookups = (hosts, type) =>
-    new Promise((resolve) => {
-      plugin.do_lookups(connection, (...args) => resolve(args), hosts, type)
-    })
+  const runLookups = async (hosts, type) => {
+    const result = await plugin.do_lookups(connection, hosts, type)
+    return [result?.code, result?.msg]
+  }
 
   it('skips when there are no hosts', async () => {
     const [code] = await runLookups([], 'body')
@@ -464,6 +498,13 @@ describe('do_lookups (local resolver)', () => {
     const [code, msg] = await runLookups(['black.example.com'], 'body')
     assert.equal(code, DENY)
     assert.match(msg, /example\.com listed in multi\.uribl\.com/)
+  })
+
+  it('does not record a pass once it has rejected', async () => {
+    dnsServer.setZone('example.com.multi.uribl.com', { a: ['127.0.0.2'] })
+    const [code] = await runLookups(['black.example.com'], 'body')
+    assert.equal(code, DENY)
+    assert.equal(getResult(connection, plugin).pass.length, 0)
   })
 
   it('rejects with a default message on a plain match', async () => {
@@ -559,7 +600,7 @@ describe('do_lookups (local resolver)', () => {
       assert.equal(rc, DENY)
     })
 
-    it('lookup_remote_ip continues on a resolver error', async () => {
+    it('lookup_remote_ip continues when the rDNS lookup fails', async () => {
       const conn = makeConnection({ ip: '203.0.113.7' })
       const { rc } = await callHook(plugin, 'lookup_remote_ip', conn)
       assert.equal(rc, undefined)
@@ -604,6 +645,103 @@ describe('do_lookups (local resolver)', () => {
       conn.transaction.body = { bodytext: '', children: [] }
       const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
       assert.equal(rc, undefined)
+    })
+
+    it('extracts the real From domain despite a poisoned display name', async () => {
+      dnsServer.setZone('real.example.com.dbl.spamhaus.org', {
+        a: ['127.0.0.2'],
+      })
+      const conn = makeConnection({ withTxn: true })
+      conn.transaction.header.add(
+        'From',
+        '"x@junk.example" <bob@real.example.com>',
+      )
+      conn.transaction.body = { bodytext: '', children: [] }
+      const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
+      assert.equal(rc, DENY)
+    })
+
+    it('checks every address in a multi-address From header', async () => {
+      dnsServer.setZone('second.example.com.dbl.spamhaus.org', {
+        a: ['127.0.0.2'],
+      })
+      const conn = makeConnection({ withTxn: true })
+      conn.transaction.header.add(
+        'From',
+        'A <a@first.example.com>, B <b@second.example.com>',
+      )
+      conn.transaction.body = { bodytext: '', children: [] }
+      const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
+      assert.equal(rc, DENY)
+    })
+
+    it('extracts the Message-ID domain after the last @', async () => {
+      dnsServer.setZone('real.example.com.dbl.spamhaus.org', {
+        a: ['127.0.0.2'],
+      })
+      const conn = makeConnection({ withTxn: true })
+      conn.transaction.header.add('Message-ID', '<a@b@real.example.com>')
+      conn.transaction.body = { bodytext: '', children: [] }
+      const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
+      assert.equal(rc, DENY)
+    })
+
+    it('tolerates an unparseable From header', async () => {
+      const conn = makeConnection({ withTxn: true })
+      conn.transaction.header.add('From', 'garbage no address here')
+      conn.transaction.body = { bodytext: '', children: [] }
+      const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
+      assert.equal(rc, undefined)
+    })
+
+    it('extracts body URLs on modern gTLDs (rebuilt regexps)', async () => {
+      dnsServer.setZone('black.xyz.multi.uribl.com', { a: ['127.0.0.2'] })
+      const conn = makeConnection({ withTxn: true })
+      conn.transaction.body = {
+        bodytext: 'visit http://black.xyz/promo today',
+        children: [],
+      }
+      const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
+      assert.equal(rc, DENY)
+    })
+
+    it('extracts body URLs quickly on adversarial slash runs', async () => {
+      const conn = makeConnection({ withTxn: true })
+      conn.transaction.body = {
+        bodytext: `http:${'/'.repeat(40000)}a@ and more text`,
+        children: [],
+      }
+      const start = process.hrtime.bigint()
+      const { rc } = await callHook(plugin, 'lookup_header_zones', conn)
+      const ms = Number(process.hrtime.bigint() - start) / 1e6
+      assert.equal(rc, undefined)
+      assert.ok(ms < 500, `body extraction took ${ms}ms`)
+    })
+
+    it('treats timeout="0" as the default, not an immediate fire', async () => {
+      plugin.cfg.main.timeout = '0'
+      try {
+        const { rc } = await callHook(plugin, 'lookup_mailfrom', connection, [
+          { host: 'clean.example.com' },
+        ])
+        assert.equal(rc, undefined)
+        assert.ok(
+          !getResult(connection, plugin).err.some((e) => /timeout/.test(e)),
+        )
+      } finally {
+        delete plugin.cfg.main.timeout
+      }
+    })
+
+    it('continues (fail-open) when a lookup rejects', async () => {
+      plugin.do_lookups = async () => {
+        throw new Error('boom')
+      }
+      const { rc } = await callHook(plugin, 'lookup_mailfrom', connection, [
+        { host: 'x.example.com' },
+      ])
+      assert.equal(rc, undefined)
+      assert.ok(getResult(connection, plugin).err.some((e) => /boom/.test(e)))
     })
 
     it('times out when lookups do not complete in time', async () => {

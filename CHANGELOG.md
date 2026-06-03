@@ -4,8 +4,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Unreleased
 
-### [1.2.0] - 2026-06-03
+### [2.0.0] - 2026-06-03
 
+- security: bound URL-extraction regexes to stop polynomial ReDoS on the body
+- security: parse From/Reply-To/Message-ID per RFC 5322 to stop domain spoofing
+- fix: escape the dot in inAddrArpaToIP (correctness + ReDoS)
+- fix: validate TLDs against haraka-tld Sets; rebuild extractors for modern gTLDs
+- fix: don't record a pass after a reject
+- fix: treat timeout="0" as the default instead of firing immediately
+- chore: replace deprecated url.parse with WHATWG URL
+- refactor: convert hook internals to async/await (dns.promises)
+- dep: add @haraka/email-address
 - fix: off-by-one in max_uris_per_list
 - fix: typoed phase label in lookup_header_zones
 - fix: hot-reload uribl.excludes
@@ -61,4 +70,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 [1.0.8]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.8
 [1.0.9]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.9
 [1.0.10]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.0.10
-[1.2.0]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v1.2.0
+[2.0.0]: https://github.com/haraka/haraka-plugin-uribl/releases/tag/v2.0.0
